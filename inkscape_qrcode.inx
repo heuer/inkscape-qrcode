@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+    <_name>QR Code (Segno)</_name>
+    <id>com.semagia.segno.inkscape</id>
+    <dependency type="executable" location="extensions">inkscape_qrcode.py</dependency>
+    <dependency type="executable" location="extensions">inkex.py</dependency>
+    <param name="data" type="string" _gui-text="Text:">www.inkscape.org</param>
+    <param name="version" type="enum" _gui-text="Version:">
+        <_item value="-">Auto</_item>
+        <item value="M1">M1</item>
+        <item value="M2">M2</item>
+        <item value="M3">M3</item>
+        <item value="M4">M4</item>
+        <item value="1">1</item>
+        <item value="2">2</item>
+        <item value="3">3</item>
+        <item value="4">4</item>
+        <item value="5">5</item>
+        <item value="6">6</item>
+        <item value="7">7</item>
+        <item value="8">8</item>
+        <item value="9">9</item>
+        <item value="10">10</item>
+        <item value="11">11</item>
+        <item value="12">12</item>
+        <item value="13">13</item>
+        <item value="14">14</item>
+        <item value="15">15</item>
+        <item value="16">16</item>
+        <item value="17">17</item>
+        <item value="18">18</item>
+        <item value="19">19</item>
+        <item value="20">20</item>
+        <item value="21">21</item>
+        <item value="22">22</item>
+        <item value="23">23</item>
+        <item value="24">24</item>
+        <item value="25">25</item>
+        <item value="26">26</item>
+        <item value="27">27</item>
+        <item value="28">28</item>
+        <item value="29">29</item>
+        <item value="30">30</item>
+        <item value="31">31</item>
+        <item value="32">32</item>
+        <item value="33">33</item>
+        <item value="34">34</item>
+        <item value="35">35</item>
+        <item value="36">36</item>
+        <item value="37">37</item>
+        <item value="38">38</item>
+        <item value="39">39</item>
+        <item value="40">40</item>
+    </param>
+    <param name="allow_micro" type="boolean" _gui-text="Allow Micro QR Code">false</param>
+    <param name="error" type="enum" _gui-text="Error correction level:">
+       <_item value="l">L (Approx. 7%)</_item>
+       <_item value="m">M (Approx. 15%)</_item>
+       <_item value="q">Q (Approx. 25%)</_item>
+       <_item value="h">H (Approx. 30%)</_item>
+    </param>
+    <param name="boost_error" type="boolean" _gui-text="Allow better error level if applicable">false</param>
+    <param name="background" type="boolean" _gui-text="White background">false</param>
+    <param name="scale" type="float" min=".1" max="1000" _gui-text="Square size:">1</param>
+    <effect>
+        <object-type>all</object-type>
+        <effects-menu>
+            <submenu _name="Render">
+                <submenu _name="Barcode" />
+            </submenu>
+        </effects-menu>
+    </effect>
+    <script>
+        <command reldir="extensions" interpreter="python">inkscape_qrcode.py</command>
+    </script>
+</inkscape-extension>
