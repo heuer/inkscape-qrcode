@@ -21,36 +21,44 @@
 Inkscape extension which uses Segno to generate QR Codes.
 """
 from __future__ import absolute_import, unicode_literals
-import io
 import inkex
+try:
+    from ._segno import encoder, utils
+except (ImportError, ValueError):
+    from _segno import encoder, utils
 try:
     from simpletransform import computePointInNode
 except ImportError:
     def computePointInNode(pt, node):
         return pt
-try:
-    from ._segno import encoder, utils
-except (ValueError, ImportError, SystemError):
-    from _segno import encoder, utils
 
 __version__ = '0.1.0'
 
 
 class InkscapeQRCode(inkex.Effect):
     """\
-
-
+    This class mediates between Inkscape and Segno.
     """
     def __init__(self):
         inkex.Effect.__init__(self)
-        self.OptionParser.add_option('--data', action='store', dest='data', type='string')
-        self.OptionParser.add_option('--version', action='store', dest='version', type='string')
-        self.OptionParser.add_option('--scale', action='store', dest='scale', type='float', default=1.0)
-        self.OptionParser.add_option('--error', action='store', dest='error', type='string', default='m')
+        self.OptionParser.add_option('--data', action='store',
+                                     dest='data', type='string')
+        self.OptionParser.add_option('--version', action='store',
+                                     dest='version', type='string')
+        self.OptionParser.add_option('--scale', action='store',
+                                     dest='scale', type='float', default=1.0)
+        self.OptionParser.add_option('--error', action='store',
+                                     dest='error', type='string', default='m')
         # Actually these are booleans but we keep them as str
-        self.OptionParser.add_option('--background', action='store', dest='background', type='string', default='false')
-        self.OptionParser.add_option('--allow_micro', action='store', dest='micro', type='string', default='false')
-        self.OptionParser.add_option('--boost_error', action='store', dest='boost_error', type='string', default='false')
+        self.OptionParser.add_option('--background', action='store',
+                                     dest='background', type='string',
+                                     default='false')
+        self.OptionParser.add_option('--allow_micro', action='store',
+                                     dest='micro', type='string',
+                                     default='false')
+        self.OptionParser.add_option('--boost_error', action='store',
+                                     dest='boost_error', type='string',
+                                     default='false')
         
     def effect(self):
         opts = self.options
@@ -63,10 +71,12 @@ class InkscapeQRCode(inkex.Effect):
         boost_error = opts.boost_error == 'true'
         want_background = opts.background == 'true'
         
-        qr = encoder.encode(opts.data, version=version, error=error, micro=micro, boost_error=boost_error)
+        qr = encoder.encode(opts.data, version=version, error=error,
+                            micro=micro, boost_error=boost_error)
 
         border = utils.get_default_border_size(qr.version)
-        
+
+        # Create path data
         x, y = border, border + .5  # .5 == stroke-width / 2
         line_iter = utils.matrix_to_lines(qr.matrix, x, y)
         # 1st coord is absolute
@@ -81,16 +91,19 @@ class InkscapeQRCode(inkex.Effect):
 
         centre = tuple(computePointInNode(list(self.view_center), self.current_layer))
 
-        grp_transform = 'translate' + str( centre )
+        grp_transform = 'translate' + str(centre)
         if opts.scale != 1:
             grp_transform += ' scale(%f)' % opts.scale
-        grp = inkex.etree.SubElement(self.current_layer, inkex.addNS('g', 'svg'), transform=grp_transform)
+        grp = inkex.etree.SubElement(self.current_layer, inkex.addNS('g', 'svg'),
+                                     transform=grp_transform)
         if want_background:
             width, height = utils.get_symbol_size(qr.version, border=border)
-            inkex.etree.SubElement(grp, inkex.addNS('rect', 'svg'),  width=str(width), height=str(height), fill='#FFF')
-        inkex.etree.SubElement(grp, inkex.addNS('path', 'svg'), d=path_data, stroke='#000')
+            inkex.etree.SubElement(grp, inkex.addNS('rect', 'svg'),
+                                   width=str(width), height=str(height),
+                                   fill='#FFF')
+        inkex.etree.SubElement(grp, inkex.addNS('path', 'svg'),
+                               d=path_data, stroke='#000')
         
-
 
 if __name__ == '__main__':
     e = InkscapeQRCode()
