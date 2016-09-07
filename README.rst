@@ -28,22 +28,20 @@ Inkscape extension path
 
 OS X
 ^^^^
-
-> global: /Applications/Inkscape.app/Contents/Resources/extensions
-> local - $HOME/.config/inkscape/extensions
+* global: /Applications/Inkscape.app/Contents/Resources/extensions
+* local: $HOME/.config/inkscape/extensions
 
 
 Linux
 ^^^^^
-> global: /usr/share/inkscape/extensions
-> local - $HOME/.config/inkscape/extensions
+* global: /usr/share/inkscape/extensions
+* local: $HOME/.config/inkscape/extensions
 
 
 Windows
 ^^^^^^^
-
-> global - C:\Program Files\Inkscape\share\extensions
-> local - C:\Documents and Settings\User\Application Data\Inkscape\extensions
+* global: C:\Program Files\Inkscape\share\extensions
+* local: C:\Documents and Settings\User\Application Data\Inkscape\extensions
 
 
 
