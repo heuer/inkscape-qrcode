@@ -41,7 +41,7 @@ version = re.search(r'''^__version__ = ["']([^'"]+)['"]''',
                     read('inkscape_qrcode.py'), flags=re.MULTILINE).group(1)
 
 setup(
-    name='segno',
+    name='inkscape-qrcode',
     version=version,
     url='https://github.com/heuer/inkscape-qrcode/',
     description='QR Code and Micro QR Code generator for Inkscape',
@@ -52,7 +52,6 @@ setup(
     platforms=['any'],
     packages=find_packages(),
     include_package_data=True,
-    install_requires=['segno'],
     keywords=['QR Code', 'Micro QR Code', 'ISO/IEC 18004',
               'ISO/IEC 18004:2006(E)', 'ISO/IEC 18004:2015(E)', 'qrcode', 'QR',
               'barcode', 'matrix', '2D', 'Inkscape'],
