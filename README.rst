@@ -22,6 +22,12 @@ installation directories.
 Alternatively copy the ``inkscape_qrcode.inx`` and the ``inkscape_qrcode``
 directory into the target directoy.
 
+The QR Code generator should appear in the menu
+```
+    Extensions > Render > Barcode > QR Code (Segno)
+```
+
+
 
 Inkscape extension path
 -----------------------
