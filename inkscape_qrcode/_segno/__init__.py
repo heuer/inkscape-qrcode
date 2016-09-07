@@ -15,11 +15,13 @@ QR Code and Micro QR Code implementation.
 :license:      BSD License
 """
 from __future__ import absolute_import, unicode_literals
+
 import sys
+
 from . import encoder
+from . import writers, utils
 from .encoder import QRCodeError, ErrorLevelError, ModeError, MaskError, \
     VersionError, DataOverflowError
-from . import writers, utils
 
 __version__ = '0.1.7'
 
@@ -351,15 +353,15 @@ class QRCode(object):
         :rtype: str
         """
         return writers.as_svg_data_uri(self.matrix, self._version, scale=scale,
-                                border=border, color=color,
-                                background=background, xmldecl=xmldecl,
-                                svgns=svgns, title=title, desc=desc,
-                                svgid=svgid, svgclass=svgclass,
-                                lineclass=lineclass, omitsize=omitsize,
-                                unit=unit, encoding=encoding,
-                                svgversion=svgversion, nl=nl,
-                                encode_minimal=encode_minimal,
-                                omit_charset=omit_charset)
+                                       border=border, color=color,
+                                       background=background, xmldecl=xmldecl,
+                                       svgns=svgns, title=title, desc=desc,
+                                       svgid=svgid, svgclass=svgclass,
+                                       lineclass=lineclass, omitsize=omitsize,
+                                       unit=unit, encoding=encoding,
+                                       svgversion=svgversion, nl=nl,
+                                       encode_minimal=encode_minimal,
+                                       omit_charset=omit_charset)
 
     def png_data_uri(self, scale=1, border=None, color='#000', background='#fff',
                      compresslevel=9, addad=True):
@@ -369,9 +371,9 @@ class QRCode(object):
         :rtype: str
         """
         return writers.as_png_data_uri(self.matrix, self._version, scale=scale,
-                                border=border, color=color,
-                                background=background,
-                                compresslevel=compresslevel, addad=addad)
+                                       border=border, color=color,
+                                       background=background,
+                                       compresslevel=compresslevel, addad=addad)
 
     def terminal(self, out=None, border=None):
         """\

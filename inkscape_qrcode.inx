@@ -72,6 +72,6 @@
         </effects-menu>
     </effect>
     <script>
-        <command reldir="extensions" interpreter="python">inkscape_qrcode.py</command>
+        <command reldir="extensions" interpreter="python">inkscape_qrcode/qrcode.py</command>
     </script>
 </inkscape-extension>

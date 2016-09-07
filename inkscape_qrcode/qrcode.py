@@ -21,17 +21,16 @@
 Inkscape extension which uses Segno to generate QR Codes.
 """
 from __future__ import absolute_import, unicode_literals
-import io
 import inkex
+try:
+    from ._segno import encoder, utils
+except (ImportError, ValueError):
+    from _segno import encoder, utils
 try:
     from simpletransform import computePointInNode
 except ImportError:
     def computePointInNode(pt, node):
         return pt
-try:
-    from ._segno import encoder, utils
-except (ValueError, ImportError, SystemError):
-    from _segno import encoder, utils
 
 __version__ = '0.1.0'
 

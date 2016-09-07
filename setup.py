@@ -38,7 +38,7 @@ def read(*filenames, **kwargs):
     return sep.join(buf)
 
 version = re.search(r'''^__version__ = ["']([^'"]+)['"]''',
-                    read('inkscape_qrcode.py'), flags=re.MULTILINE).group(1)
+                    read('inkscape_qrcode/qrcode.py'), flags=re.MULTILINE).group(1)
 
 setup(
     name='inkscape-qrcode',
