@@ -52,6 +52,7 @@
         <item value="39">39</item>
         <item value="40">40</item>
     </param>
+    <_param name="sizehint" type="description" xml:space="preserve">With "Auto", the size of the barcode depends on the length of the text and the error correction level</_param>
     <param name="allow_micro" type="boolean" _gui-text="Allow Micro QR Code">false</param>
     <param name="error" type="enum" _gui-text="Error correction level:">
        <_item value="l">L (Approx. 7%)</_item>

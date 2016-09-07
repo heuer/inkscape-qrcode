@@ -38,8 +38,7 @@ __version__ = '0.1.0'
 
 class InkscapeQRCode(inkex.Effect):
     """\
-
-
+    This class mediates between Inkscape and Segno.
     """
     def __init__(self):
         inkex.Effect.__init__(self)
@@ -77,7 +76,8 @@ class InkscapeQRCode(inkex.Effect):
                             micro=micro, boost_error=boost_error)
 
         border = utils.get_default_border_size(qr.version)
-        
+
+        # Create path data
         x, y = border, border + .5  # .5 == stroke-width / 2
         line_iter = utils.matrix_to_lines(qr.matrix, x, y)
         # 1st coord is absolute
