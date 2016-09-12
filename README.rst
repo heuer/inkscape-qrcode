@@ -45,5 +45,5 @@ Linux
 
 Windows
 ^^^^^^^
-* global: C:\Program Files\Inkscape\share\extensions
-* local: C:\Documents and Settings\User\Application Data\Inkscape\extensions
+* global: C:\\Program Files\\Inkscape\\share\\extensions
+* local: C:\\Documents and Settings\\User\\Application Data\\Inkscape\\extensions
