@@ -2,7 +2,7 @@
 <inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
     <_name>QR Code (Segno)</_name>
     <id>com.semagia.segno.inkscape</id>
-    <dependency type="executable" location="extensions">inkscape_qrcode.py</dependency>
+    <dependency type="executable" location="extensions">inkscape_qrcode/qrcode.py</dependency>
     <dependency type="executable" location="extensions">inkex.py</dependency>
     <param name="data" type="string" _gui-text="Text:">www.inkscape.org</param>
     <param name="version" type="enum" _gui-text="Version:">
