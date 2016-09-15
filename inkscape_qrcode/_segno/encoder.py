@@ -15,16 +15,13 @@ QR Code and Micro QR Code encoder.
 :license:      BSD License
 """
 from __future__ import absolute_import, division
-
-import codecs
-import re
-from collections import namedtuple
-from copy import deepcopy
-from functools import partial
 from operator import itemgetter, gt, lt
-
+from functools import partial
+import re
+import codecs
+from copy import deepcopy
+from collections import namedtuple
 from . import consts
-
 _PY2 = False
 try:  # pragma: no cover
     str = unicode
@@ -176,7 +173,7 @@ def boost_error_level(version, error, segments):
     :param segments: Instance of :py:class:`Segments`
     """
     if error not in (consts.ERROR_LEVEL_H, None) and len(segments) == 1:
-        mode = segments[0].mode
+        modes = segments.modes
         data_length = segments.data_length
         levels = [consts.ERROR_LEVEL_L, consts.ERROR_LEVEL_M,
                   consts.ERROR_LEVEL_Q, consts.ERROR_LEVEL_H]
@@ -185,11 +182,18 @@ def boost_error_level(version, error, segments):
             if version < consts.VERSION_M4:
                 levels.pop()  # Error level Q isn't supported by M2 and M3
         for level in levels[levels.index(error)+1:]:
-            try:
-                if consts.SYMBOL_CAPACITY[version][error][mode] >= data_length:
-                    error = level
-            except KeyError:
-                pass
+            found = False
+            for mode in modes:
+                try:
+                    if consts.SYMBOL_CAPACITY[version][level][mode] >= data_length:
+                        found = True
+                except KeyError:
+                    found = False
+                    break
+            if found:
+                error = level
+            else:
+                break
     return error
 
 
@@ -217,7 +221,7 @@ def write_segment(buff, segment, ver, ver_range, eci=False):
         append_bits(consts.MODE_TO_MICRO_MODE_MAPPING[mode], ver + 3)
     # Character count indicator
     append_bits(segment.data_length,
-                consts.CHAR_COUNT_INDICATOR_LENGTH[mode][ver_range])
+              consts.CHAR_COUNT_INDICATOR_LENGTH[mode][ver_range])
     data = segment.data
     if mode == consts.MODE_NUMERIC:
         # ISO/IEC 18004:2015(E) -- 7.4.3 Numeric mode (page 25)
@@ -1142,8 +1146,7 @@ def normalize_version(version):
     if error or not 0 < version < 41 and version not in consts.MICRO_VERSIONS:
         raise VersionError('Unsupported version "{0}". '
                            'Supported: {1} and 1 .. 40'
-                           .format(version, ', '.join(sorted(
-            consts.MICRO_VERSION_MAPPING.keys()))))
+                           .format(version, ', '.join(sorted(consts.MICRO_VERSION_MAPPING.keys()))))
     return version
 
 
@@ -1168,8 +1171,7 @@ def normalize_mode(mode):
         return consts.MODE_MAPPING[mode.lower()]
     except:  # KeyError or mode.lower() fails
         raise ModeError('Illegal mode "{0}". Supported values: {1}'
-                        .format(mode, ', '.join(sorted(
-            consts.MODE_MAPPING.keys()))))
+                        .format(mode, ', '.join(sorted(consts.MODE_MAPPING.keys()))))
 
 
 def normalize_mask(mask, is_micro):
@@ -1217,8 +1219,7 @@ def normalize_errorlevel(error, accept_none=False):
             return error
         raise ErrorLevelError('Illegal error correction level: "{0}".'
                               'Supported levels: {1}'
-                              .format(error, ', '.join(sorted(
-            consts.ERROR_MAPPING.keys()))))
+                              .format(error, ', '.join(sorted(consts.ERROR_MAPPING.keys()))))
 
 
 def get_mode_name(mode_const):
@@ -1263,8 +1264,7 @@ def get_version_name(version_const):
 
 
 
-_ALPHANUMERIC_PATTERN = re.compile(br'^[' + re.escape(
-    consts.ALPHANUMERIC_CHARS) + br']+\Z')
+_ALPHANUMERIC_PATTERN = re.compile(br'^[' + re.escape(consts.ALPHANUMERIC_CHARS) + br']+\Z')
 def is_alphanumeric(data):
     """\
     Returns if the provided `data` can be encoded in "alphanumeric" mode.
