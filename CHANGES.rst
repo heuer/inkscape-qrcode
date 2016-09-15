@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.1.2 - 2016-09-15
+------------------
+* Updated underlying Segno version to 0.2.0 since
+  the previous version may create invalid QR Codes if "error boost" is
+  enabled
+
+
 0.1.1 - 2016-09-07
 ------------------
 * Initial release
