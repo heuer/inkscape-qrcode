@@ -1,1 +1,1 @@
-include LICENSE, *.txt, *.rst, *.inx
+include LICENSE *.txt *.rst *.inx
