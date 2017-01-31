@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2016 -- Lars Heuer - Semagia <http://www.semagia.com/>.
+# Copyright (c) 2016 - 2017 -- Lars Heuer - Semagia <http://www.semagia.com/>.
 # All rights reserved.
 #
 # License: BSD License
@@ -9,10 +9,6 @@
 QR Code and Micro QR Code encoder.
 
 "QR Code" and "Micro QR Code" are registered trademarks of DENSO WAVE INCORPORATED.
-
-:author:       Lars Heuer (heuer[at]semagia.com)
-:organization: Semagia - http://www.semagia.com/
-:license:      BSD License
 """
 from __future__ import absolute_import, division
 from operator import itemgetter, gt, lt
@@ -24,12 +20,14 @@ from collections import namedtuple
 from . import consts
 _PY2 = False
 try:  # pragma: no cover
+    from itertools import zip_longest
+    str_type = str
+except ImportError:  # pragma: no cover
+    _PY2 = True
+    from itertools import izip_longest as zip_longest
+    str_type = basestring
     str = unicode
     range = xrange
-    from itertools import izip_longest as zip_longest
-    _PY2 = True
-except NameError:  # pragma: no cover
-    from itertools import zip_longest
 
 import sys
 _MAX_PENALTY_SCORE = sys.maxsize
@@ -37,6 +35,9 @@ del sys
 
 __all__ = ('encode', 'QRCodeError', 'VersionError', 'ModeError',
            'ErrorLevelError', 'MaskError', 'DataOverflowError')
+
+# <https://wiki.python.org/moin/PortingToPy3k/BilingualQuickRef#New_Style_Classes>
+__metaclass__ = type
 
 
 class QRCodeError(ValueError):
@@ -96,12 +97,11 @@ def encode(content, error=None, version=None, mode=None, mask=None,
     :rtype: namedtuple
     """
     version = normalize_version(version)
-    if micro is False and version in consts.MICRO_VERSIONS:
+    if not micro and micro is not None and version in consts.MICRO_VERSIONS:
         raise VersionError('A Micro QR Code version ("{0}") is provided but '
                            'parameter "micro" is False'
                            .format(get_version_name(version)))
-    if micro is True and version is not None \
-            and version not in consts.MICRO_VERSIONS:
+    if micro and version is not None and version not in consts.MICRO_VERSIONS:
         raise VersionError('Illegal Micro QR Code version "{0}"'
                            .format(get_version_name(version)))
     error = normalize_errorlevel(error, accept_none=True)
@@ -113,8 +113,10 @@ def encode(content, error=None, version=None, mode=None, mask=None,
     if error == consts.ERROR_LEVEL_H and (micro or version in consts.MICRO_VERSIONS):
         raise ErrorLevelError('Error correction level "H" is not available for '
                               'Micro QR Codes')
-    segments = prepare_data(content, mode, encoding)
-    guessed_version = find_version(segments, error, micro)
+    if eci and (micro or version in consts.MICRO_VERSIONS):
+        raise VersionError('The ECI mode is not available for Micro QR Codes')
+    segments = prepare_data(content, mode, encoding, version)
+    guessed_version = find_version(segments, error, eci=eci, micro=micro)
     if version is None:
         version = guessed_version
     elif guessed_version > version:
@@ -123,9 +125,9 @@ def encode(content, error=None, version=None, mode=None, mask=None,
                                 .format(get_version_name(version),
                                         get_version_name(guessed_version)))
     if error is None and version != consts.VERSION_M1:
-        error = consts.ERROR_LEVEL_M
+        error = consts.ERROR_LEVEL_L
     if boost_error:
-        error = boost_error_level(version, error, segments)
+        error = boost_error_level(version, error, segments, eci)
     is_micro = version < 1
     mask = normalize_mask(mask, is_micro)
     buff = Buffer()
@@ -137,11 +139,11 @@ def encode(content, error=None, version=None, mode=None, mask=None,
     # ISO/IEC 18004:2015(E) -- 7.4 Data encoding (page 22)
     for segment in segments:
         write_segment(buff, segment, ver, ver_range, eci)
-    capacity = consts.SYMBOL_CAPACITY[version][error][0]
+    capacity = consts.SYMBOL_CAPACITY[version][error]
     # ISO/IEC 18004:2015(E) -- 7.4.9 Terminator (page 32)
     write_terminator(buff, capacity, ver, len(buff))
     #  ISO/IEC 18004:2015(E) -- 7.4.10 Bit stream to codeword conversion (page 34)
-    write_padding_bits(buff, len(buff))
+    write_padding_bits(buff, version, len(buff))
     # ISO/IEC 18004:2015(E) -- 7.4.10 Bit stream to codeword conversion (page 34)
     write_pad_codewords(buff, version, capacity, len(buff))
     # ISO/IEC 18004:2015(E) -- 7.6 Constructing the final message codeword sequence (page 45)
@@ -153,7 +155,7 @@ def encode(content, error=None, version=None, mode=None, mask=None,
     # ISO/IEC 18004:2015 -- 6.3.6 Alignment patterns (page 17)
     add_alignment_patterns(matrix, version)
     # ISO/IEC 18004:2015 -- 7.7 Codeword placement in matrix (page 46)
-    add_codewords(matrix, buff, is_micro)
+    add_codewords(matrix, buff, version)
     # ISO/IEC 18004:2015(E) -- 7.8.2 Data mask patterns (page 50)
     # ISO/IEC 18004:2015(E) -- 7.8.3 Evaluation of data masking results (page 53)
     matrix, mask = find_best_mask(matrix, version, is_micro, mask)
@@ -164,36 +166,30 @@ def encode(content, error=None, version=None, mode=None, mask=None,
     return Code(matrix, version, error, mask, segments)
 
 
-def boost_error_level(version, error, segments):
+def boost_error_level(version, error, segments, eci):
     """\
     Increases the error level if possible.
 
-    :param version: Version constant.
-    :param error: Error level constant or ``None``
-    :param segments: Instance of :py:class:`Segments`
+    :param int version: Version constant.
+    :param int|None error: Error level constant or ``None``
+    :param Segments segments: Instance of :py:class:`Segments`
+    :param bool eci: Indicates if ECI designator should be written.
     """
     if error not in (consts.ERROR_LEVEL_H, None) and len(segments) == 1:
-        modes = segments.modes
-        data_length = segments.data_length
         levels = [consts.ERROR_LEVEL_L, consts.ERROR_LEVEL_M,
                   consts.ERROR_LEVEL_Q, consts.ERROR_LEVEL_H]
         if version < 1:
             levels.pop()  # H isn't support by Micro QR Codes
             if version < consts.VERSION_M4:
                 levels.pop()  # Error level Q isn't supported by M2 and M3
+        data_length = segments.bit_length_with_overhead(version, eci)
         for level in levels[levels.index(error)+1:]:
-            found = False
-            for mode in modes:
-                try:
-                    if consts.SYMBOL_CAPACITY[version][level][mode] >= data_length:
-                        found = True
-                except KeyError:
-                    found = False
-                    break
+            try:
+                found = consts.SYMBOL_CAPACITY[version][level] >= data_length
+            except KeyError:
+                break
             if found:
                 error = level
-            else:
-                break
     return error
 
 
@@ -202,7 +198,7 @@ def write_segment(buff, segment, ver, ver_range, eci=False):
     Writes a segment.
 
     :param buff: The byte buffer.
-    :param segment: The segment to serialize.
+    :param _Segment segment: The segment to serialize.
     :param ver: ``None`` if a QR Code is written, "M1", "M2", "M3", or "M4" if a
             Micro QR Code is written.
     :param ver_range: "M1", "M2", "M3", or "M4" if a Micro QR Code is written,
@@ -220,64 +216,9 @@ def write_segment(buff, segment, ver, ver_range, eci=False):
     elif ver > consts.VERSION_M1:  # Micro QR Code (M1 has no mode indicator)
         append_bits(consts.MODE_TO_MICRO_MODE_MAPPING[mode], ver + 3)
     # Character count indicator
-    append_bits(segment.data_length,
-              consts.CHAR_COUNT_INDICATOR_LENGTH[mode][ver_range])
-    data = segment.data
-    if mode == consts.MODE_NUMERIC:
-        # ISO/IEC 18004:2015(E) -- 7.4.3 Numeric mode (page 25)
-        # The input data string is divided into groups of three digits, and
-        # each group is converted to its 10-bit binary equivalent. If the number
-        # of input digits is not an exact multiple of three, the final one or
-        # two digits are converted to 4 or 7 bits respectively.
-        for i in range(0, segment.data_length, 3):
-            chunk = data[i:i + 3]
-            append_bits(int(chunk), len(chunk) * 3 + 1)
-    elif mode == consts.MODE_ALPHANUMERIC:
-        # ISO/IEC 18004:2015(E) -- 7.4.4 Alphanumeric mode (page 26)
-        to_byte = consts.ALPHANUMERIC_CHARS.find
-        for i in range(0, segment.data_length, 2):
-            chunk = data[i:i + 2]
-            # Input data characters are divided into groups of two characters
-            # which are encoded as 11-bit binary codes. The character value of
-            # the first character is multiplied by 45 and the character value
-            # of the second digit is added to the product. The sum is then
-            # converted to an 11-bit binary number.
-            if len(chunk) > 1:
-                append_bits(to_byte(chunk[0]) * 45 + to_byte(chunk[1]), 11)
-            else:
-                # If the number of input data characters is not a multiple of
-                # two, the character value of the final character is encoded
-                # as a 6-bit binary number.
-                append_bits(to_byte(chunk), 6)
-    elif mode == consts.MODE_BYTE:
-        # ISO/IEC 18004:2015(E) -- 7.4.5 Byte mode (page 27)
-        if _PY2:
-            data = (ord(b) for b in segment.data)
-        for b in data:
-            append_bits(b, 8)
-    elif mode == consts.MODE_KANJI:
-        # ISO/IEC 18004:2015(E) -- 7.4.6 Kanji mode (page 29)
-        if _PY2:
-            data = [ord(b) for b in segment.data]
-        # Note: len(segment.data)! segment.data_length = len(segment.data) / 2!!
-        for i in range(0, len(segment.data), 2):
-            code = (data[i] << 8) | data[i + 1]
-            if 0x8140 <= code <= 0x9ffc:
-                # For characters with Shift JIS values from 8140HEX to 9FFCHEX:
-                # a) Subtract 8140HEX from Shift JIS value;
-                diff = code - 0x8140
-            elif 0xe040 <= code <= 0xebbf:
-                # For characters with Shift JIS values from E040HEX to EBBFHEX:
-                # a) Subtract C140HEX from Shift JIS value;
-                diff = code - 0xc140
-            else:  # pragma: no cover
-                raise QRCodeError('Invalid Kanji bytes: {0}'.format(code))
-            # b) Multiply most significant byte of result by C0HEX;
-            # c) Add least significant byte to product from b);
-            # d) Convert result to a 13-bit binary string.
-            append_bits(((diff >> 8) * 0xc0) + (diff & 0xff), 13)
-    else:  # pragma: no cover
-        raise QRCodeError('Internal error: Unsupported mode "{0}"'.format(mode))
+    append_bits(segment.char_count,
+                consts.CHAR_COUNT_INDICATOR_LENGTH[mode][ver_range])
+    buff.extend(segment.bits)
 
 
 def write_terminator(buff, capacity, ver, length):
@@ -294,7 +235,7 @@ def write_terminator(buff, capacity, ver, length):
     buff.extend([0] * min(capacity - length, consts.TERMINATOR_LENGTH[ver]))
 
 
-def write_padding_bits(buff, length):
+def write_padding_bits(buff, version, length):
     """\
     Writes padding bits if the data stream does not meet the codeword boundary.
 
@@ -309,7 +250,8 @@ def write_padding_bits(buff, length):
     # codeword boundary, padding bits with binary value 0 shall be added after
     # the final bit (least significant bit) of the data stream to extend it
     # to the codeword boundary. [...]
-    buff.extend([0] * (8 - (length % 8)))
+    if version not in (consts.VERSION_M1, consts.VERSION_M3):
+        buff.extend([0] * (8 - (length % 8)))
 
 
 def write_pad_codewords(buff, version, capacity, length):
@@ -331,13 +273,12 @@ def write_pad_codewords(buff, version, capacity, length):
     # character position in Micro QR Code versions M1 and M3 symbols shall be
     # represented as 0000.
     write = buff.extend
-    padword_length = 8
-    pad_codewords = ((1, 1, 1, 0, 1, 1, 0, 0), (0, 0, 0, 1, 0, 0, 0, 1))
     if version in (consts.VERSION_M1, consts.VERSION_M3):
-        padword_length = 4
-        pad_codewords = ((0, 0, 0, 0), (0, 0, 0, 0))
-    for i in range(capacity // padword_length - length // padword_length):
-        write(pad_codewords[i % 2])
+        write([0] * (capacity - length))
+    else:
+        pad_codewords = ((1, 1, 1, 0, 1, 1, 0, 0), (0, 0, 0, 1, 0, 0, 0, 1))
+        for i in range(capacity // 8 - length // 8):
+            write(pad_codewords[i % 2])
 
 
 def add_finder_patterns(matrix, is_micro):
@@ -438,7 +379,7 @@ def add_alignment_patterns(matrix, version):
                 matrix[row + r][col:col+5] = _ALIGNMENT_PATTERN[r]
 
 
-def add_codewords(matrix, codewords, is_micro):
+def add_codewords(matrix, codewords, version):
     """\
     Adds the codewords (data and error correction) to the provided matrix.
 
@@ -448,35 +389,33 @@ def add_codewords(matrix, codewords, is_micro):
     :param codewords: Sequence of ints
     """
     matrix_size = len(matrix)
-    idx = 0
+    is_micro = version < 1
+    # Necessary for M1 and M3: The algorithm would start at the upper right
+    # corner, see <https://github.com/heuer/segno/issues/36>
+    inc = 0 if version not in (consts.VERSION_M1, consts.VERSION_M3) else 2
+    idx = 0  # Pointer to the current codeword
+    # ISO/IEC 18004:2015(E) - page 48
+    # [...] An alternative method for placement in the symbol [...] is to regard
+    # the interleaved codeword sequence as a single bit stream, which is placed
+    # (starting with the most significant bit) in the two-module wide columns
+    # alternately upwards and downwards from the right to left of the symbol.
+    # [...]
     for right in range(matrix_size - 1, 0, -2):
         if not is_micro and right <= 6:
             right -= 1
         for vertical in range(matrix_size):
             for z in range(2):
                 j = right - z
-                upwards = ((right & 2) == 0) ^ (not is_micro and j < 6)
+                upwards = ((right + inc) & 2) == 0
+                if not is_micro:
+                    upwards ^= j < 6
                 i = (matrix_size - 1 - vertical) if upwards else vertical
                 if matrix[i][j] == 0x2 and idx < len(codewords):
                     matrix[i][j] = codewords[idx]
                     idx += 1
-
-
-def make_data_blocks(ec_infos, codewords):
-    """\
-    Divides the `codewords` according to the `ec_infos` into blocks
-    of codewords and returns a list of blocks.
-
-    :param codewords: Iterable of codewords.
-    :param ec_infos: Iterable of Error Correction information
-    """
-    res = []
-    offset = 0
-    for ec_info in ec_infos:
-        for i in range(ec_info.num_blocks):
-            res.append(codewords[offset:offset + ec_info.num_data])
-            offset += ec_info.num_data
-    return res
+    if idx != len(codewords):  # pragma: no cover
+        raise QRCodeError('Internal error: Adding codewords to matrix failed. '
+                          'Added {0} of {1} codewords'.format(idx, len(codewords)))
 
 
 def make_final_message(version, error, codewords):
@@ -491,16 +430,26 @@ def make_final_message(version, error, codewords):
     :return: Byte buffer representing the final message.
     """
     ec_infos = consts.ECC[version][error]
+    last_cw_is_four = version in (consts.VERSION_M1, consts.VERSION_M3)
     data_blocks, error_blocks = make_blocks(ec_infos, codewords)
+    if last_cw_is_four:
+        # All codewords are 8 bit by default, M1 and M3 symbols use 4 bits
+        # to represent the last last codeword
+        # datablocks[0] is save since Micro QR Codes use just one datablock and
+        # one error block
+        data_blocks[0][-1] >>= 4
     buff = Buffer()
     append_int = partial(buff.append_bits, length=8)
-    # Write code words
+    # Write codewords
     for i in range(max(info.num_data for info in ec_infos)):
         for block in data_blocks:
             if i >= len(block):
                 continue
-            append_int(block[i])
-    # Write error words
+            if last_cw_is_four and i + 1 == len(block):
+                buff.append_bits(block[i], 4)
+            else:
+                append_int(block[i])
+    # Write error codewords
     for i in range(max(info.num_total - info.num_data for info in ec_infos)):
         for block in error_blocks:
             if i >= len(block):
@@ -585,8 +534,6 @@ def find_best_mask(matrix, version, is_micro, proposed_mask=None):
     :rtype: tuple
     :return: A tuple of the best matrix and best data mask pattern index.
     """
-    best_matrix = None
-    best_pattern = None
     matrix_size = len(matrix)
     # ISO/IEC 18004:2015 -- 7.8.3.1 Evaluation of QR Code symbols (page 53/54)
     # The data mask pattern which results in the lowest penalty score shall
@@ -612,18 +559,24 @@ def find_best_mask(matrix, version, is_micro, proposed_mask=None):
     def is_encoding_region(i, j):
         return function_matrix[i][j] == 0x2
 
-    for mask_number, mask_pattern in enumerate(get_data_mask_functions(is_micro)):
+    mask_patterns = get_data_mask_functions(is_micro)
+
+    # If the user supplied a mask pattern, the evaluation step is skipped
+    if proposed_mask is not None:
+        apply_mask(matrix, mask_patterns[proposed_mask], matrix_size,
+                   is_encoding_region)
+        return matrix, proposed_mask
+
+    for mask_number, mask_pattern in enumerate(mask_patterns):
         masked_matrix = deepcopy(matrix)
         apply_mask(masked_matrix, mask_pattern, matrix_size, is_encoding_region)
         # NOTE: DO NOT add format / version info in advance of evaluation
         # See ISO/IEC 18004:2015(E) -- 7.8. Data masking (page 50)
         score = eval_mask(masked_matrix, matrix_size)
-        if is_better(score, best_score) or mask_number == proposed_mask:
+        if is_better(score, best_score):
             best_score = score
             best_matrix = masked_matrix
             best_pattern = mask_number
-            if mask_number == proposed_mask:
-                break
     return best_matrix, best_pattern
 
 
@@ -828,14 +781,47 @@ def evaluate_micro_mask(matrix, matrix_size):
     return sum1 * 16 + sum2 if sum1 <= sum2 else sum2 * 16 + sum1
 
 
+def calc_format_info(version, error, mask_pattern):
+    """\
+    Returns the format information for the provided error level and mask patttern.
+
+    ISO/IEC 18004:2015(E) -- 7.9 Format information (page 55)
+    ISO/IEC 18004:2015(E) -- Table C.1 — Valid format information bit sequences (page 80)
+
+    :param int version: Version constant
+    :param int error: Error level constant.
+    :param int mask_pattern: Mask pattern number.
+    """
+    fmt = mask_pattern
+    if version > 0:
+        if error == consts.ERROR_LEVEL_L:
+            fmt += 0x08
+        elif error == consts.ERROR_LEVEL_H:
+            fmt += 0x10
+        elif error == consts.ERROR_LEVEL_Q:
+            fmt += 0x18
+        format_info = consts.FORMAT_INFO[fmt]
+    else:
+        fmt += consts.ERROR_LEVEL_TO_MICRO_MAPPING[version][error] << 2
+        format_info = consts.FORMAT_INFO_MICRO[fmt]
+    return format_info
+
+
 def add_format_info(matrix, version, error, mask_pattern):
     """\
+    Adds the format information into the provided matrix.
+
     ISO/IEC 18004:2015(E) -- 7.9 Format information (page 55)
     ISO/IEC 18004:2015(E) -- 7.9.1 QR Code symbols
     ISO/IEC 18004:2015(E) -- 7.9.2 Micro QR Code symbols
+
+    :param matrix: The matrix.
+    :param int version: Version constant
+    :param int error: Error level constant.
+    :param int mask_pattern: Mask pattern number.
     """
     # 14: most significant bit
-    #  0: lest significant bit
+    #  0: least significant bit
     #
     # QR Code format info:                                          Micro QR format info
     # col 0                col 7              col matrix[-1]      col 1
@@ -859,15 +845,8 @@ def add_format_info(matrix, version, error, mask_pattern):
     #                       13
     #                       14
     is_micro = version < 1
+    format_info = calc_format_info(version, error, mask_pattern)
     offset = int(is_micro)
-    fmt = mask_pattern
-    if error == consts.ERROR_LEVEL_L:
-        fmt += (0x08 if not is_micro else 0x4)
-    elif error == consts.ERROR_LEVEL_H:
-        fmt += (0x10 if not is_micro else 0xe)
-    elif error == consts.ERROR_LEVEL_Q:
-        fmt += (0x18 if not is_micro else 0x14)
-    format_info = consts.FORMAT_INFO[fmt] if not is_micro else consts.FORMAT_INFO_MICRO[fmt]
     for i in range(8):
         bit = (format_info >> i) & 0x01
         if i == 6 and not is_micro:  # Timing pattern
@@ -930,49 +909,7 @@ def add_version_info(matrix, version):
         matrix[i][-9] = bit3
 
 
-class Segments(list):
-    """\
-    Represents a sequence of `Segment` instances.
-    """
-    def __init__(self):
-        super(Segments, self).__init__()
-        self.data_length = 0
-        self.modes = set()
-
-    def append(self, segment):
-        """\
-
-        :param Segment segment: Segment to add.
-        """
-        super(Segments, self).append(segment)
-        self.data_length += segment.data_length
-        self.modes.add(segment.mode)
-
-
-class Segment(tuple):
-    """\
-    Represents a data segment.
-
-    A segment provides the (encoding specific) byte data, the data length,
-    the QR Code mode, and the used encoding. The latter is ``None`` iff mode
-    is not "byte".
-
-    Note that `data_length` may not be equal to len(data)!
-
-    See also ISO/IEC 18004:2015(E) - 7.4.7 Mixing modes (page 30)
-    """
-    __slots__ = ()
-
-    def __new__(cls, data, length, mode, encoding=None):
-        return tuple.__new__(cls, (data, length, mode, encoding))
-
-    data = property(itemgetter(0))
-    data_length = property(itemgetter(1))
-    mode = property(itemgetter(2))
-    encoding = property(itemgetter(3))
-
-
-def prepare_data(content, mode, encoding):
+def prepare_data(content, mode, encoding, version=None):
     """\
     Returns an iterable of `Segment` instances.
 
@@ -986,11 +923,14 @@ def prepare_data(content, mode, encoding):
             instances may have a different mode.
     :param encoding: The global encoding. If `content` is a list or a tuple,
             the `Segment` instances may have a different encoding.
+    :param int version: Version constant or ``None``. This refers to the version
+                which was provided by the user.
+    :rtype: Segments
     """
     segments = Segments()
-    append = segments.append
-    if isinstance(content, (str, bytes, int)):
-        append(make_segment(content, mode, encoding))
+    add_segment = segments.add_segment
+    if isinstance(content, (str_type, bytes, int)):
+        add_segment(make_segment(content, mode, encoding))
         return segments
     for item in content:
         seg_content, seg_mode, seg_encoding = item, mode, encoding
@@ -1000,7 +940,7 @@ def prepare_data(content, mode, encoding):
                 seg_mode = item[1] or mode  # item[1] could be None
             if len(item) > 2:
                 seg_encoding = item[2] or encoding # item[2] may be None
-        append(make_segment(seg_content, seg_mode, seg_encoding))
+        add_segment(make_segment(seg_content, seg_mode, seg_encoding))
     return segments
 
 
@@ -1042,14 +982,14 @@ def data_to_bytes(data, encoding):
     return data, len(data), encoding
 
 
-def make_segment(data, mode, encoding):
+def make_segment(data, mode, encoding=None):
     """\
     Creates a :py:class:`Segment`.
 
     :param data: The segment data
     :param mode: The mode.
     :param encoding: The encoding.
-    :rtype: Segment
+    :rtype: _Segment
     """
     segment_data, segment_length, segment_encoding = data_to_bytes(data, encoding)
     segment_mode = mode
@@ -1068,11 +1008,64 @@ def make_segment(data, mode, encoding):
                                     get_mode_name(guessed_mode)))
     else:
         segment_mode = guessed_mode
-    if segment_mode == consts.MODE_KANJI:
-        segment_length //= 2
     if segment_mode != consts.MODE_BYTE:
         segment_encoding = None
-    return Segment(segment_data, segment_length, segment_mode, segment_encoding)
+    buff = Buffer()
+    append_bits = buff.append_bits
+    if segment_mode == consts.MODE_NUMERIC:
+        # ISO/IEC 18004:2015(E) -- 7.4.3 Numeric mode (page 25)
+        # The input data string is divided into groups of three digits, and
+        # each group is converted to its 10-bit binary equivalent. If the number
+        # of input digits is not an exact multiple of three, the final one or
+        # two digits are converted to 4 or 7 bits respectively.
+        for i in range(0, segment_length, 3):
+            chunk = segment_data[i:i + 3]
+            append_bits(int(chunk), len(chunk) * 3 + 1)
+    elif segment_mode == consts.MODE_ALPHANUMERIC:
+        # ISO/IEC 18004:2015(E) -- 7.4.4 Alphanumeric mode (page 26)
+        to_byte = consts.ALPHANUMERIC_CHARS.find
+        for i in range(0, segment_length, 2):
+            chunk = segment_data[i:i + 2]
+            # Input data characters are divided into groups of two characters
+            # which are encoded as 11-bit binary codes. The character value of
+            # the first character is multiplied by 45 and the character value
+            # of the second digit is added to the product. The sum is then
+            # converted to an 11-bit binary number.
+            if len(chunk) > 1:
+                append_bits(to_byte(chunk[0]) * 45 + to_byte(chunk[1]), 11)
+            else:
+                # If the number of input data characters is not a multiple of
+                # two, the character value of the final character is encoded
+                # as a 6-bit binary number.
+                append_bits(to_byte(chunk), 6)
+    elif segment_mode == consts.MODE_BYTE:
+        # ISO/IEC 18004:2015(E) -- 7.4.5 Byte mode (page 27)
+        if _PY2:
+            segment_data = (ord(b) for b in segment_data)
+        for b in segment_data:
+            append_bits(b, 8)
+    else:
+        # ISO/IEC 18004:2015(E) -- 7.4.6 Kanji mode (page 29)
+        if _PY2:
+            segment_data = [ord(b) for b in segment_data]
+        # Note: len(segment.data)! segment.data_length = len(segment.data) / 2!!
+        for i in range(0, len(segment_data), 2):
+            code = (segment_data[i] << 8) | segment_data[i + 1]
+            if 0x8140 <= code <= 0x9ffc:
+                # For characters with Shift JIS values from 8140HEX to 9FFCHEX:
+                # a) Subtract 8140HEX from Shift JIS value;
+                diff = code - 0x8140
+            elif 0xe040 <= code <= 0xebbf:
+                # For characters with Shift JIS values from E040HEX to EBBFHEX:
+                # a) Subtract C140HEX from Shift JIS value;
+                diff = code - 0xc140
+            else:  # pragma: no cover
+                raise QRCodeError('Invalid Kanji bytes: {0}'.format(code))
+            # b) Multiply most significant byte of result by C0HEX;
+            # c) Add least significant byte to product from b);
+            # d) Convert result to a 13-bit binary string.
+            append_bits(((diff >> 8) * 0xc0) + (diff & 0xff), 13)
+    return _Segment(buff.getbits(), segment_length, segment_mode, segment_encoding)
 
 
 def make_matrix(version, reserve_regions=True, add_timing=True):
@@ -1185,13 +1178,16 @@ def normalize_mask(mask, is_micro):
     """
     if mask is None:
         return None
-    mask = int(mask)
+    try:
+        mask = int(mask)
+    except ValueError:
+        raise MaskError('Invalid data mask "{0}". Must be an integer or a string which represents an integer value.'.format(mask))
     if is_micro:
-        if not 0 <= mask <= 4:
-            raise MaskError('Invalid data mask "{0}" for Micro QR Code'.format(mask))
+        if not 0 <= mask < 4:
+            raise MaskError('Invalid data mask "{0}" for Micro QR Code. Must be in range 0 .. 3'.format(mask))
     else:
-        if not 0 <= mask <= 8:
-            raise MaskError('Invalid data mask "{0}"'.format(mask))
+        if not 0 <= mask < 8:
+            raise MaskError('Invalid data mask "{0}". Must be in range 0 .. 7'.format(mask))
     return mask
 
 
@@ -1312,27 +1308,25 @@ def find_mode(data):
     return consts.MODE_BYTE
 
 
-def find_version(segments, error, micro):
+def find_version(segments, error, eci, micro):
     """\
 
     """
-    #TODO: Calc. overhead for switching modes!
-    data_length = segments.data_length
-    modes = segments.modes
+    assert not (eci and micro)
     min_version = 1 if micro is False else consts.VERSION_M1
     max_version = 40 if micro is not True else consts.VERSION_M4
+    if min_version < 1:
+        min_version = max([find_minimum_version_for_mode(mode) for mode in segments.modes])
     if error is not None and micro is not False:
         min_version = consts.VERSION_M2
     for version in range(min_version, max_version + 1):
         if error is None and version != consts.VERSION_M1:
-            error = consts.ERROR_LEVEL_M
+            error = consts.ERROR_LEVEL_L
         found = False
-        for mode in modes:
-            try:
-                found = consts.SYMBOL_CAPACITY[version][error][mode] >= data_length
-            except KeyError:
-                found = False
-                break
+        try:
+            found = consts.SYMBOL_CAPACITY[version][error] >= segments.bit_length_with_overhead(version, eci)
+        except KeyError:
+            pass
         if found:
             return version
     help_txt = ''
@@ -1375,6 +1369,19 @@ def is_mode_supported(mode, ver):
         return ver in consts.SUPPORTED_MODES[mode]
     except KeyError:
         raise ModeError('Unknown mode "{0}"'.format(mode))
+
+
+def find_minimum_version_for_mode(mode):
+    """\
+    Returns the minimum Micro QR Code version which supports the provided mode.
+
+    :param int mode: Canonicalized mode.
+    :rtype: int
+    """
+    for v in consts.MICRO_VERSIONS:
+        if is_mode_supported(mode, v):
+            return v
+    return 1
 
 
 def version_range(version):
@@ -1466,7 +1473,90 @@ def get_data_mask_functions(is_micro):
     return fn0, fn1, fn2, fn3, fn4, fn5, fn6, fn7
 
 
-class Buffer(object):
+class Segments:
+    """\
+    Represents a sequence of `Segment` instances.
+
+    Note: len(segments) returns the number of Segments and not the data length;
+    use segments.data_length
+    """
+    __slots__ = ('segments', 'bit_length', 'modes')
+
+    def __init__(self):
+        self.segments = []
+        self.bit_length = 0
+        self.modes = []
+
+    def add_segment(self, segment):
+        """\
+
+        :param _Segment segment: Segment to add.
+        """
+        if self.segments:
+            prev_seg = self.segments[-1]
+            if prev_seg.mode == segment.mode and prev_seg.encoding == segment.encoding:
+                # Merge segment with previous segment
+                segment = _Segment(prev_seg.bits + segment.bits,
+                                   prev_seg.char_count + segment.char_count,
+                                   segment.mode, segment.encoding)
+                self.bit_length -= len(prev_seg.bits)
+                del self.segments[-1]
+                del self.modes[-1]
+        self.segments.append(segment)
+        self.bit_length += len(segment.bits)
+        self.modes.append(segment.mode)
+
+    def __len__(self):
+        return len(self.segments)
+
+    def __getitem__(self, item):
+        return self.segments[item]
+
+    def __iter__(self):
+        return iter(self.segments)
+
+    def bit_length_with_overhead(self, version, eci):
+        overhead = 0
+        # ECI overhead
+        if eci:
+            no_eci_indicators = sum([1 for segment in self.segments if segment.mode == consts.MODE_BYTE and segment.encoding != consts.DEFAULT_BYTE_ENCODING])
+            overhead += no_eci_indicators * 4  # ECI indicator
+            overhead += no_eci_indicators * 8  # ECI assignment no
+        # Mode indicator overhead
+        if version > 0:  # QR Code
+            overhead += len(self.modes) * 4
+        elif version > consts.VERSION_M1:  # Micro QR Code (M1 has no mode indicator)
+            overhead += len(self.modes) * (version + 3)
+        # Char count indicator overhead
+        ver_range = version_range(version) if version > 0 else version
+        overhead += sum([consts.CHAR_COUNT_INDICATOR_LENGTH[mode][ver_range] for mode in self.modes])
+        return overhead + self.bit_length
+
+
+class _Segment(tuple):
+    """\
+    Represents a data segment.
+
+    A segment provides the (encoding specific) byte data, the data length,
+    the QR Code mode, and the used encoding. The latter is ``None`` iff mode
+    is not "byte".
+
+    Note that `data_length` may not be equal to len(data)!
+
+    See also ISO/IEC 18004:2015(E) - 7.4.7 Mixing modes (page 30)
+    """
+    __slots__ = ()
+
+    def __new__(cls, bits, char_count, mode, encoding=None):
+        return tuple.__new__(cls, (bits, char_count, mode, encoding))
+
+    bits = property(itemgetter(0))
+    char_count = property(itemgetter(1))
+    mode = property(itemgetter(2))
+    encoding = property(itemgetter(3))
+
+
+class Buffer:
     """\
     Wraps a bytearray and provides some useful methods to add bits.
     """
@@ -1498,4 +1588,3 @@ class Buffer(object):
 
     def __getitem__(self, item):
         return self._data[item]
-
