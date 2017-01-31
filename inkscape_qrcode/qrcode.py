@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # Inkscape QR Code
-# Copyright (C) 2016 Lars Heuer
+# Copyright (C) 2016 - 2017 Lars Heuer
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of version 2 of the GNU General Public
@@ -32,7 +32,7 @@ except ImportError:
     def computePointInNode(pt, node):
         return pt
 
-__version__ = '0.1.4dev'
+__version__ = '0.1.4'
 
 
 class InkscapeQRCode(inkex.Effect):
