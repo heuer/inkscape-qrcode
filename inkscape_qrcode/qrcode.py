@@ -68,6 +68,8 @@ class InkscapeQRCode(inkex.Effect):
         if version == '-':
             version = None
         micro = None if opts.micro == 'true' else False
+        # Avoid problems / exceptions with choosing a Micro QR code version
+        # If micro is False and the user chooses a MQR, an exception will be raised
         if version in ('M1', 'M2', 'M3', 'M4'):
             micro = True
         boost_error = opts.boost_error == 'true'
