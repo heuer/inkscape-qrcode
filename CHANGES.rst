@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.1.5 - 2018-mm-dd
+------------------
+* Fixed #2 (avoid exceptions if a Micro QR Code is choosen)
+
+
+0.1.4 - 2017-01-31
+------------------
+* Updated Segno version to 0.2.4 to avoid problems with Micro QR Codes
+
+
 0.1.3 - 2016-09-15
 ------------------
 * Fixed inkscape_qrcode.inx (pointed to a wrong path)
