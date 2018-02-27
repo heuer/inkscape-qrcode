@@ -92,6 +92,12 @@ class InkscapeQRCode(inkex.Effect):
 
 
 def _create_path(qr, border):
+    """\
+    Returns a path of dark modules.
+
+    :param qr: QR code
+    :param int border: The border size
+    """
     # Create path data
     x, y = border, border + .5  # .5 == stroke-width / 2
     line_iter = utils.matrix_to_lines(qr.matrix, x, y)
