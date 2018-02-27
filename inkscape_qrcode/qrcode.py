@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # Inkscape QR Code
-# Copyright (C) 2016 Lars Heuer
+# Copyright (C) 2016 - 2018 Lars Heuer
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of version 2 of the GNU General Public
@@ -68,29 +68,15 @@ class InkscapeQRCode(inkex.Effect):
         if version == '-':
             version = None
         micro = None if opts.micro == 'true' else False
+        if version in ('M1', 'M2', 'M3', 'M4'):
+            micro = True
         boost_error = opts.boost_error == 'true'
         want_background = opts.background == 'true'
-        
         qr = encoder.encode(opts.data, version=version, error=error,
                             micro=micro, boost_error=boost_error)
-
         border = utils.get_default_border_size(qr.version)
-
-        # Create path data
-        x, y = border, border + .5  # .5 == stroke-width / 2
-        line_iter = utils.matrix_to_lines(qr.matrix, x, y)
-        # 1st coord is absolute
-        (x1, y1), (x2, y2) = next(line_iter)
-        coord = ['M{0} {1}h{2}'.format(x1, y1, x2 - x1)]
-        append_coord = coord.append
-        x, y = x2, y2
-        for (x1, y1), (x2, y2) in line_iter:
-            append_coord('m{0} {1}h{2}'.format(x1 - x, int(y1 - y), x2 - x1))
-            x, y = x2, y2
-        path_data = ''.join(coord)
-
+        path_data = _create_path(qr, border)
         centre = tuple(computePointInNode(list(self.view_center), self.current_layer))
-
         grp_transform = 'translate' + str(centre)
         if opts.scale != 1:
             grp_transform += ' scale(%f)' % opts.scale
@@ -103,7 +89,22 @@ class InkscapeQRCode(inkex.Effect):
                                    fill='#FFF')
         inkex.etree.SubElement(grp, inkex.addNS('path', 'svg'),
                                d=path_data, stroke='#000')
-        
+
+
+def _create_path(qr, border):
+    # Create path data
+    x, y = border, border + .5  # .5 == stroke-width / 2
+    line_iter = utils.matrix_to_lines(qr.matrix, x, y)
+    # 1st coord is absolute
+    (x1, y1), (x2, y2) = next(line_iter)
+    coord = ['M{0} {1}h{2}'.format(x1, y1, x2 - x1)]
+    append_coord = coord.append
+    x, y = x2, y2
+    for (x1, y1), (x2, y2) in line_iter:
+        append_coord('m{0} {1}h{2}'.format(x1 - x, int(y1 - y), x2 - x1))
+        x, y = x2, y2
+    return ''.join(coord)
+
 
 if __name__ == '__main__':
     e = InkscapeQRCode()
