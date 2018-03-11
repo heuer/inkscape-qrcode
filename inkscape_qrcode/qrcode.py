@@ -42,24 +42,23 @@ class InkscapeQRCode(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
         self.OptionParser.add_option('--data', action='store',
-                                     dest='data', type='string')
+                                     dest='data', type='string', default="")
         self.OptionParser.add_option('--version', action='store',
                                      dest='version', type='string')
         self.OptionParser.add_option('--scale', action='store',
                                      dest='scale', type='float', default=1.0)
         self.OptionParser.add_option('--error', action='store',
-                                     dest='error', type='string', default='m')
+                                     dest='error', type='string', default='L')
+        self.OptionParser.add_option('--symbol_count', action='store',
+                                     dest='symbol_count',  type='int', default=1)
         # Actually these are booleans but we keep them as str
         self.OptionParser.add_option('--background', action='store',
-                                     dest='background', type='string',
-                                     default='false')
+                                     dest='background', type='string', default='false')
         self.OptionParser.add_option('--allow_micro', action='store',
-                                     dest='micro', type='string',
-                                     default='false')
+                                     dest='micro', type='string', default='false')
         self.OptionParser.add_option('--boost_error', action='store',
-                                     dest='boost_error', type='string',
-                                     default='false')
-        
+                                     dest='boost_error', type='string', default='false')
+
     def effect(self):
         opts = self.options
         version, error = opts.version, opts.error
@@ -74,26 +73,37 @@ class InkscapeQRCode(inkex.Effect):
             micro = True
         boost_error = opts.boost_error == 'true'
         want_background = opts.background == 'true'
-        qr = encoder.encode(opts.data, version=version, error=error,
-                            micro=micro, boost_error=boost_error)
-        border = utils.get_default_border_size(qr.version)
-        path_data = _create_path(qr, border)
+        if not micro and opts.symbol_count > 1:
+            qrs = encoder.encode_sequence(opts.data, version=version, error=error,
+                                          encoding=encoder, boost_error=boost_error,
+                                          symbol_count=opts.symbol_count)
+        else:
+            qrs = [encoder.encode(opts.data, version=version, error=error,
+                                  micro=micro, boost_error=boost_error)]
         centre = tuple(computePointInNode(list(self.view_center), self.current_layer))
         grp_transform = 'translate' + str(centre)
         if opts.scale != 1:
             grp_transform += ' scale(%f)' % opts.scale
         grp = inkex.etree.SubElement(self.current_layer, inkex.addNS('g', 'svg'),
                                      transform=grp_transform)
+        border = utils.get_default_border_size(qrs[0].version)
+        width, height = utils.get_symbol_size(qrs[0].version, border=border)
         if want_background:
-            width, height = utils.get_symbol_size(qr.version, border=border)
+            background_width = width
+            if len(qrs) > 1:
+                background_width = len(qrs) * width
             inkex.etree.SubElement(grp, inkex.addNS('rect', 'svg'),
-                                   width=str(width), height=str(height),
+                                   width=str(background_width), height=str(height),
                                    fill='#FFF')
-        inkex.etree.SubElement(grp, inkex.addNS('path', 'svg'),
-                               d=path_data, stroke='#000')
+        offset = 0
+        for qr in qrs:
+            path_data = _create_path(qr, border, offset=offset)
+            inkex.etree.SubElement(grp, inkex.addNS('path', 'svg'),
+                                   d=path_data, stroke='#000')
+            offset += height + border
 
 
-def _create_path(qr, border):
+def _create_path(qr, border, offset):
     """\
     Returns a path of dark modules.
 
@@ -101,7 +111,7 @@ def _create_path(qr, border):
     :param int border: The border size
     """
     # Create path data
-    x, y = border, border + .5  # .5 == stroke-width / 2
+    x, y = border + offset, border + .5  # .5 == stroke-width / 2
     line_iter = utils.matrix_to_lines(qr.matrix, x, y)
     # 1st coord is absolute
     (x1, y1), (x2, y2) = next(line_iter)
