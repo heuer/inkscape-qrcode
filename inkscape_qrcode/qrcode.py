@@ -88,19 +88,18 @@ class InkscapeQRCode(inkex.Effect):
                                      transform=grp_transform)
         border = utils.get_default_border_size(qrs[0].version)
         width, height = utils.get_symbol_size(qrs[0].version, border=border)
-        if want_background:
-            background_width = width
-            if len(qrs) > 1:
-                background_width = len(qrs) * width
-            inkex.etree.SubElement(grp, inkex.addNS('rect', 'svg'),
-                                   width=str(background_width), height=str(height),
-                                   fill='#FFF')
+        multiple_qr = len(qrs) > 1
         offset = 0
         for qr in qrs:
+            g = grp if not multiple_qr else inkex.etree.SubElement(grp, inkex.addNS('g', 'svg'))
+            if want_background:
+                inkex.etree.SubElement(g, inkex.addNS('rect', 'svg'),
+                                       width=str(width), height=str(height),
+                                       x=str(offset), fill='#FFF')
             path_data = _create_path(qr, border, offset=offset)
-            inkex.etree.SubElement(grp, inkex.addNS('path', 'svg'),
-                                   d=path_data, stroke='#000')
-            offset += height + border
+            inkex.etree.SubElement(g, inkex.addNS('path', 'svg'), d=path_data,
+                                   stroke='#000')
+            offset += width + border
 
 
 def _create_path(qr, border, offset):
