@@ -4,6 +4,7 @@
     <id>com.semagia.segno.inkscape</id>
     <dependency type="executable" location="extensions">inkscape_qrcode/qrcode.py</dependency>
     <dependency type="executable" location="extensions">inkex.py</dependency>
+    <param name="info" type="description" appearance="header">Segno 0.2.7</param>
     <param name="data" type="string" _gui-text="Text:">www.inkscape.org</param>
     <param name="version" type="enum" _gui-text="Version:">
         <_item value="-">Auto</_item>
@@ -60,6 +61,7 @@
        <_item value="q">Q (Approx. 25%)</_item>
        <_item value="h">H (Approx. 30%)</_item>
     </param>
+    <param name="symbol_count" type="int" min="1" max="16" _gui-text="Number of symbols (Structured Append)">1</param>
     <param name="boost_error" type="boolean" _gui-text="Allow better error level if applicable">false</param>
     <param name="background" type="boolean" _gui-text="White background">false</param>
     <param name="scale" type="float" min=".1" max="1000" _gui-text="Square size:">1</param>

@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.1.5 - 2018-mm-dd
+------------------
+* Updated Segno to version 0.2.7
+* Fixed #1 "Support for Structured Append"
+* Fixed #2 (avoid exceptions if a Micro QR Code is chosen)
+
+
 0.1.4 - 2017-01-31
 ------------------
 * Updated Segno version to 0.2.4 to avoid problems with Micro QR Codes
