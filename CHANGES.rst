@@ -1,7 +1,7 @@
 Changes
 =======
 
-0.1.5 - 2018-mm-dd
+0.1.5 - 2018-03-13
 ------------------
 * Updated Segno to version 0.2.7
 * Fixed #1 "Support for Structured Append"
