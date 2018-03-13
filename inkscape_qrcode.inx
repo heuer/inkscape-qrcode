@@ -60,6 +60,7 @@
        <_item value="q">Q (Approx. 25%)</_item>
        <_item value="h">H (Approx. 30%)</_item>
     </param>
+    <param name="symbol_count" type="int" min="1" max="16" _gui-text="Number of symbols (Structured Append)">1</param>
     <param name="boost_error" type="boolean" _gui-text="Allow better error level if applicable">false</param>
     <param name="background" type="boolean" _gui-text="White background">false</param>
     <param name="scale" type="float" min=".1" max="1000" _gui-text="Square size:">1</param>
