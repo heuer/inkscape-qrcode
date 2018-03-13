@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
-#  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 """\
 Inkscape extension which uses Segno to generate QR Codes.
@@ -32,7 +32,7 @@ except ImportError:
     def computePointInNode(pt, node):
         return pt
 
-__version__ = '0.1.5dev'
+__version__ = '0.1.5'
 
 
 class InkscapeQRCode(inkex.Effect):
