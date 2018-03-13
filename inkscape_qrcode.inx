@@ -4,6 +4,7 @@
     <id>com.semagia.segno.inkscape</id>
     <dependency type="executable" location="extensions">inkscape_qrcode/qrcode.py</dependency>
     <dependency type="executable" location="extensions">inkex.py</dependency>
+    <param name="info" type="description" appearance="header">Segno 0.2.7</param>
     <param name="data" type="string" _gui-text="Text:">www.inkscape.org</param>
     <param name="version" type="enum" _gui-text="Version:">
         <_item value="-">Auto</_item>
