@@ -32,7 +32,7 @@ except ImportError:
     def computePointInNode(pt, node):
         return pt
 
-__version__ = '0.1.6'
+__version__ = '0.1.7.dev0'
 
 
 class InkscapeQRCode(inkex.Effect):
