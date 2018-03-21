@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.1.6 - 2018-03-21
+------------------
+* Updated docs and provide an additional zip file
+
+
 0.1.5 - 2018-03-13
 ------------------
 * Updated Segno to version 0.2.7
