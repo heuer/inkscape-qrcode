@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # Inkscape QR Code
-# Copyright (C) 2016 Lars Heuer
+# Copyright (C) 2016 - 2018 Lars Heuer
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of version 2 of the GNU General Public
@@ -13,9 +13,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-#  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 """\
 Setup script.
@@ -50,7 +50,7 @@ setup(
     author='Lars Heuer',
     author_email='heuer@semagia.com',
     platforms=['any'],
-    packages=find_packages(),
+    packages=find_packages(exclude=['update_segno.py']),
     include_package_data=True,
     keywords=['QR Code', 'Micro QR Code', 'ISO/IEC 18004',
               'ISO/IEC 18004:2006(E)', 'ISO/IEC 18004:2015(E)', 'qrcode', 'QR',
