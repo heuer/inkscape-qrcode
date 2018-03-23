@@ -1,6 +1,12 @@
 Changes
 =======
 
+
+0.1.7 - 2018-03-23
+------------------
+* Attempt to make the package installable via pip >= 7 again.
+
+
 0.1.6 - 2018-03-21
 ------------------
 * Updated docs and provide an additional zip file

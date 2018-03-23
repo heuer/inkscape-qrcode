@@ -20,7 +20,7 @@
 """\
 Setup script.
 """
-from __future__ import unicode_literals
+import sys
 from setuptools import setup, find_packages
 import os
 import io
@@ -40,6 +40,9 @@ def read(*filenames, **kwargs):
 version = re.search(r'''^__version__ = ["']([^'"]+)['"]''',
                     read('inkscape_qrcode/qrcode.py'), flags=re.MULTILINE).group(1)
 
+if 'bdist_wheel' in sys.argv:
+    raise RuntimeError('No worries, this package should be installed correctly.')
+
 setup(
     name='inkscape-qrcode',
     version=version,
@@ -51,6 +54,7 @@ setup(
     author_email='heuer@semagia.com',
     platforms=['any'],
     packages=find_packages(exclude=['update_segno.py']),
+    package_data={'inkscape_qrcode': ['../inkscape_qrcode.inx']},
     include_package_data=True,
     keywords=['QR Code', 'Micro QR Code', 'ISO/IEC 18004',
               'ISO/IEC 18004:2006(E)', 'ISO/IEC 18004:2015(E)', 'qrcode', 'QR',
