@@ -13,8 +13,15 @@ standard for QR Codes.
 Installation
 ------------
 
-Download the source distribution, extract it an copy ``inkscape_qrcode.inx`` and
-the ``inkscape_qrcode`` directory into the target directoy (see below).
+Use ``pip`` to install inkscape-qrcode from PyPI::
+
+    $ pip install --update --target=<target_dir> inkscape-qrcode
+
+``<target_dir>`` should refer to an absolute path, see below for typical
+installation directories.
+
+Alternatively copy the ``inkscape_qrcode.inx`` and the ``inkscape_qrcode``
+directory into the target directoy.
 
 The QR Code generator should appear in the menu
 ``Extensions > Render > Barcode > QR Code (Segno)``
