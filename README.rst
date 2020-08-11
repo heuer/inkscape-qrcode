@@ -1,3 +1,10 @@
+This project is not maintained anymore and does not work with Inkscape 1.0 
+==========================================================================
+
+If someone wants to maintain this project I'd be happy to transfer it together with the `PyPI project <https://pypi.org/project/inkscape-qrcode/>`_
+
+
+
 QR Code generator for Inkscape
 ==============================
 
